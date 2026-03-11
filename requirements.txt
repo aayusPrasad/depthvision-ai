@@ -1,1 +1,7 @@
-pip install fastapi uvicorn torch torchvision pillow numpy opencv-python
+fastapi
+uvicorn
+torch
+torchvision
+pillow
+numpy
+opencv-python
