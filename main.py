@@ -13,7 +13,9 @@ from utils import preprocess_image, depth_to_colormap
 
 app = FastAPI()
 
-# Allow frontend requests
+# -----------------------------
+# CORS (allow frontend access)
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,26 +24,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -----------------------------
 # Device selection
+# -----------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
+
+# -----------------------------
+# Model configuration
+# -----------------------------
+MODEL_PATH = "best_depth_model.pth"
+MODEL_URL = "https://drive.google.com/uc?id=1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh"
 
 # -----------------------------
 # Download model if not present
 # -----------------------------
-MODEL_PATH = "best_depth_model.pth"
-
 if not os.path.exists(MODEL_PATH):
-    print("Downloading model...")
-    url = "https://drive.google.com/uc?id=1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh"
-    gdown.download(url, MODEL_PATH, quiet=False)
+    print("Model not found. Downloading...")
+    try:
+        gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
+        print("Model downloaded successfully")
+    except Exception as e:
+        print("Model download failed:", e)
 
-model = DepthModel().to(device)
+# -----------------------------
+# Load model
+# -----------------------------
+try:
+    model = DepthModel().to(device)
 
-model.load_state_dict(
-    torch.load(MODEL_PATH, map_location=device, weights_only=False)
-)
+    state_dict = torch.load(MODEL_PATH, map_location=device)
+    model.load_state_dict(state_dict)
 
-model.eval()
+    model.eval()
+
+    print("Model loaded successfully")
+
+except Exception as e:
+    print("Model loading failed:", e)
+
+# -----------------------------
+# Debug: show files in server
+# -----------------------------
+print("Files in server directory:", os.listdir())
 
 # -----------------------------
 # Test route
@@ -56,19 +81,28 @@ def home():
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
 
-    contents = await file.read()
+    try:
 
-    image = Image.open(io.BytesIO(contents)).convert("RGB")
+        contents = await file.read()
 
-    input_tensor = preprocess_image(image).to(device)
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    with torch.no_grad():
-        output = model(input_tensor)
+        input_tensor = preprocess_image(image).to(device)
 
-    depth_colormap = depth_to_colormap(output)
+        with torch.no_grad():
+            output = model(input_tensor)
 
-    _, buffer = cv2.imencode(".png", depth_colormap)
+        depth_colormap = depth_to_colormap(output)
 
-    depth_base64 = base64.b64encode(buffer).decode("utf-8")
+        success, buffer = cv2.imencode(".png", depth_colormap)
 
-    return {"depth_image": depth_base64}
+        if not success:
+            return {"error": "Failed to encode image"}
+
+        depth_base64 = base64.b64encode(buffer.tobytes()).decode("utf-8")
+
+        return {"depth_image": depth_base64}
+
+    except Exception as e:
+        print("Prediction error:", e)
+        return {"error": str(e)}
