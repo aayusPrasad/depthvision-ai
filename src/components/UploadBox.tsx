@@ -28,16 +28,35 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
     },
     [handleFile]
   );
+  const handleGenerate = async () => {
+  if (!file || !preview) return;
 
-  const handleGenerate = () => {
-    if (!preview) return;
-    setIsProcessing(true);
-    // Simulate AI processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      onResult(preview, preview); // In production, this would be the actual depth map
-    }, 3000);
-  };
+  setIsProcessing(true);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const response = await fetch(
+      "https://depthvision-ai-4.onrender.com/predict",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    const depthImage = `data:image/png;base64,${data.depth_image}`;
+
+    setIsProcessing(false);
+
+    onResult(preview, depthImage);
+  } catch (error) {
+    console.error("Error generating depth map:", error);
+    setIsProcessing(false);
+  }
+};
 
   return (
     <section id="upload" className="relative py-32">
