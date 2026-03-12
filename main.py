@@ -32,18 +32,13 @@ MODEL_PATH = "best_depth_model.pth"
 
 if not os.path.exists(MODEL_PATH):
     print("Downloading model...")
-    
-    url = "https://drive.google.com/file/d/1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh/view?usp=sharing"
-
+    url = "https://drive.google.com/uc?id=1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh"
     gdown.download(url, MODEL_PATH, quiet=False)
 
-# -----------------------------
-# Load model
-# -----------------------------
 model = DepthModel().to(device)
 
 model.load_state_dict(
-    torch.load(MODEL_PATH, map_location=device)
+    torch.load(MODEL_PATH, map_location=device, weights_only=False)
 )
 
 model.eval()
