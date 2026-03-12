@@ -5,12 +5,15 @@ from PIL import Image
 import io
 import base64
 import cv2
+import os
+import gdown
 
 from model import DepthModel
 from utils import preprocess_image, depth_to_colormap
 
 app = FastAPI()
 
+# Allow frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,18 +22,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Device selection
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# -----------------------------
+# Download model if not present
+# -----------------------------
+MODEL_PATH = "best_depth_model.pth"
+
+if not os.path.exists(MODEL_PATH):
+    print("Downloading model...")
+    
+    url = "https://drive.google.com/file/d/1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh/view?usp=sharing"
+
+    gdown.download(url, MODEL_PATH, quiet=False)
+
+# -----------------------------
+# Load model
+# -----------------------------
 model = DepthModel().to(device)
-model.load_state_dict(torch.load("best_depth_model.pth", map_location=device))
+
+model.load_state_dict(
+    torch.load(MODEL_PATH, map_location=device)
+)
+
 model.eval()
 
-
+# -----------------------------
+# Test route
+# -----------------------------
 @app.get("/")
 def home():
-    return {"message":"DepthVision backend running"}
+    return {"message": "DepthVision backend running"}
 
-
+# -----------------------------
+# Prediction route
+# -----------------------------
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
 
@@ -45,7 +72,7 @@ async def predict(file: UploadFile = File(...)):
 
     depth_colormap = depth_to_colormap(output)
 
-    _, buffer = cv2.imencode('.png', depth_colormap)
+    _, buffer = cv2.imencode(".png", depth_colormap)
 
     depth_base64 = base64.b64encode(buffer).decode("utf-8")
 
