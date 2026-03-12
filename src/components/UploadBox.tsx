@@ -12,12 +12,20 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }, []);
+  const handleFile = (selectedFile: File) => {
+
+  if (!selectedFile.type.startsWith("image/")) return;
+
+  setFile(selectedFile);
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    setPreview(e.target?.result as string);
+  };
+
+  reader.readAsDataURL(selectedFile);
+};
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -28,8 +36,13 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
     },
     [handleFile]
   );
-  const handleGenerate = async () => {
-  if (!file || !preview) return;
+ 
+     const handleGenerate = async () => {
+
+  if (!file) {
+    alert("Please upload an image first");
+    return;
+  }
 
   setIsProcessing(true);
 
@@ -37,13 +50,18 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
   formData.append("file", file);
 
   try {
+
     const response = await fetch(
       "https://depthvision-ai-4.onrender.com/predict",
       {
         method: "POST",
-        body: formData,
+        body: formData
       }
     );
+
+    if (!response.ok) {
+      throw new Error("Server error");
+    }
 
     const data = await response.json();
 
@@ -51,10 +69,15 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
 
     setIsProcessing(false);
 
-    onResult(preview, depthImage);
+    if (preview) {
+      onResult(preview, depthImage);
+    }
+
   } catch (error) {
+
     console.error("Error generating depth map:", error);
     setIsProcessing(false);
+
   }
 };
 
