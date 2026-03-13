@@ -60,7 +60,7 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
 
     try {
       const response = await fetch(
-        "https://depthvision-ai-4.onrender.com/predict",
+        "https://aayup78bm-aayush1.hf.space/predict",
         {
           method: "POST",
           body: formData,
@@ -68,14 +68,21 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Server Error:", errorText);
         throw new Error("Server error");
       }
 
       const data = await response.json();
 
+      if (!data.depth_image) {
+        throw new Error("No depth image returned");
+      }
+
       const depthImage = `data:image/png;base64,${data.depth_image}`;
 
       onResult(preview, depthImage);
+
     } catch (error) {
       console.error("Error generating depth map:", error);
       alert("Error generating depth map");
@@ -87,7 +94,6 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
   return (
     <section id="upload" className="relative py-32">
       <div className="container mx-auto px-6">
-
         <div className="mx-auto max-w-2xl">
 
           <div
