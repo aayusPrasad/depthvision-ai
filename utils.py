@@ -12,29 +12,35 @@ transform = transforms.Compose([
 ])
 
 def preprocess_image(image):
-
     img = transform(image)
-
     img = img.unsqueeze(0)
-
     return img
 
 # -----------------------------
-# Convert depth map to colormap
+# Convert depth map to final heatmap
 # -----------------------------
 def depth_to_colormap(depth):
 
-    # If tensor comes accidentally, convert safely
+    # Tensor → numpy
     if isinstance(depth, torch.Tensor):
         depth = depth.squeeze().cpu().numpy()
 
-    # Normalize depth
-    depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+    # Remove invalid values
+    depth = np.nan_to_num(depth)
+
+    # Strong normalization
+    depth = depth - np.min(depth)
+
+    if np.max(depth) != 0:
+        depth = depth / np.max(depth)
 
     # Convert to uint8
-    depth = depth.astype(np.uint8)
+    depth = (depth * 255).astype(np.uint8)
 
-    # Apply color map
+    # Contrast enhancement
+    depth = cv2.equalizeHist(depth)
+
+    # Heatmap coloring
     depth_color = cv2.applyColorMap(depth, cv2.COLORMAP_MAGMA)
 
     return depth_color
