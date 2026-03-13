@@ -26,7 +26,7 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Force CPU (important for deployment)
+# CPU only
 # -----------------------------
 device = torch.device("cpu")
 print("Using device:", device)
@@ -38,7 +38,7 @@ MODEL_PATH = "best_depth_model.pth"
 MODEL_URL = "https://drive.google.com/uc?id=1us5NNHFmdeQMJ25mH7Mbc1ZclwghWpzh"
 
 # -----------------------------
-# Download model if missing
+# Download model only if missing
 # -----------------------------
 if not os.path.exists(MODEL_PATH):
     print("Downloading model...")
@@ -46,10 +46,10 @@ if not os.path.exists(MODEL_PATH):
         gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
         print("Model downloaded successfully")
     except Exception as e:
-        print("Download failed:", e)
+        print("Model download failed:", e)
 
 # -----------------------------
-# Load model safely
+# Load model once globally
 # -----------------------------
 model = None
 
@@ -58,14 +58,14 @@ try:
 
     state_dict = torch.load(
         MODEL_PATH,
-        map_location=torch.device("cpu")
+        map_location=device
     )
 
     model.load_state_dict(state_dict)
 
-    del state_dict
-
     model.eval()
+
+    del state_dict
 
     print("Model loaded successfully")
 
@@ -101,16 +101,17 @@ async def predict(file: UploadFile = File(...)):
 
         depth = output.squeeze().cpu().numpy()
 
-        depth_colormap = depth_to_colormap(depth)
+        del output
+        del input_tensor
 
-        depth_colormap = np.array(depth_colormap, dtype=np.uint8)
+        depth_colormap = depth_to_colormap(depth)
 
         success, buffer = cv2.imencode(".png", depth_colormap)
 
         if not success:
             return {"error": "Encoding failed"}
 
-        depth_base64 = base64.b64encode(buffer.tobytes()).decode("utf-8")
+        depth_base64 = base64.b64encode(buffer).decode("utf-8")
 
         return {"depth_image": depth_base64}
 
@@ -119,7 +120,7 @@ async def predict(file: UploadFile = File(...)):
         return {"error": str(e)}
 
 # -----------------------------
-# Hugging Face entry point
+# Hugging Face startup
 # -----------------------------
 if __name__ == "__main__":
     import uvicorn
