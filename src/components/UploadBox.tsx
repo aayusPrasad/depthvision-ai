@@ -60,7 +60,7 @@ const UploadBox = ({ onResult }: UploadBoxProps) => {
 
     try {
       const response = await fetch(
-        "https://aayup78bm-aayush1.hf.space/predict",
+        "https://aayup78bm-depthvision.hf.space/predict",
         {
           method: "POST",
           body: formData,
